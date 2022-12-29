@@ -321,7 +321,9 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
     @Since("1.4.0.0-PN")
     private boolean hasSeenCredits;
     private boolean foodEnabled = true;
-
+    @PowerNukkitXOnly
+    @Since("1.19.50-r4")
+    private int glidedTick = 0;
 
     @PowerNukkitOnly
     public Player(SourceInterface interfaz, Long clientID, String ip, int port) {
@@ -3049,10 +3051,27 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                         this.highestPosition = this.y;
                     }
 
-                    // Wiki: 使用鞘翅滑翔时在垂直高度下降率低于每刻 0.5 格的情况下，摔落高度被重置为 1 格。
-                    // Wiki: 玩家在较小的角度和足够低的速度上着陆不会受到坠落伤害。着陆时临界伤害角度为50°，伤害值等同于玩家从滑行的最高点直接摔落到着陆点受到的伤害。
-                    if (this.isGliding() && Math.abs(this.speed.y) < 0.5 && this.getPitch() <= 40) {
-                        this.resetFallDistance();
+                    if (this.isGliding()) {
+                        // Wiki: 使用鞘翅滑翔时在垂直高度下降率低于每刻 0.5 格的情况下，摔落高度被重置为 1 格。
+                        // Wiki: 玩家在较小的角度和足够低的速度上着陆不会受到坠落伤害。着陆时临界伤害角度为50°，伤害值等同于玩家从滑行的最高点直接摔落到着陆点受到的伤害。
+                        if (Math.abs(this.speed.y) < 0.5 && this.getPitch() <= 40) {
+                            this.resetFallDistance();
+                        }
+
+                        if (this.gamemode != CREATIVE && ++this.glidedTick % 20 == 0) {
+                            // 非创造模式下扣除耐久
+                            Item chestplate = this.getInventory().getChestplate();
+                            // 鞘翅耐久不会耗尽
+                            if (((ItemElytra) chestplate).canUse()) {
+                                // 鞘翅的耐久附魔效果有所不同
+                                if (new Random().nextInt(chestplate.getEnchantmentLevel(Enchantment.ID_DURABILITY) + 1) == 0) {
+                                    chestplate.setDamage(chestplate.getDamage() + 1);
+                                }
+                                this.getInventory().setChestplate(chestplate);
+                            } else {
+                                this.setGliding(false);
+                            }
+                        }
                     }
 
                     ++this.inAirTicks;
@@ -7440,5 +7459,17 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
         pk.objectiveName = scoreboard.getObjectiveName();
 
         this.dataPacket(pk);
+    }
+
+    @PowerNukkitXOnly
+    @Since("1.19.50-r4")
+    public void setGlidedTick(int tick) {
+        this.glidedTick = tick;
+    }
+
+    @PowerNukkitXOnly
+    @Since("1.19.50-r4")
+    public int getGlidedTick() {
+        return this.glidedTick;
     }
 }

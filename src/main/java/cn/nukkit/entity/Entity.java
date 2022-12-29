@@ -1039,6 +1039,9 @@ public abstract class Entity extends Location implements Metadatable {
     }
 
     public void setGliding(boolean value) {
+        if (!value) {
+            if (this instanceof Player) ((Player) this).resetInAirTicks();  // 处理因滞空时间叠加导致的下落速度叠加
+        }
         this.setDataFlag(DATA_FLAGS, DATA_FLAG_GLIDING, value);
     }
 
